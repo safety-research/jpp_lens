@@ -1,0 +1,33 @@
+J++ Lens
+Copyright 2026 Kola Ayonrinde
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes software and data from the following projects.
+
+1. Jacobian lens reference implementation, Copyright 2026 Anthropic PBC, Apache License 2.0.
+   https://github.com/anthropics/jacobian-lens (commit 581d398613e5602a5af361e1c34d3a92ea82ba8e)
+
+   - src/jlens/ is vendored from that repository's jlens/ package, and src/jlens/tests/ from
+     its tests/ directory (tiny.py and test_hf_layout.py). Changes: the fitting, lens and
+     visualisation modules and their data were removed (fitting and lenses live in
+     src/workspace_lens/), the package exports were reduced to match, the slice-visualisation
+     example prompts were removed from examples.py, and docstrings that referred to the removed
+     modules were edited.
+   - src/workspace_lens/fitting/jacobian_fitting.py and src/workspace_lens/lenses/base_lens.py
+     are derived from jlens/fitting.py and jlens/lens.py of that repository, with substantial
+     changes (expert Jacobians, the LRP backward pass, checkpointing, multi-stream residuals).
+     src/workspace_lens/utils.py (the position mask) is derived from jlens/fitting.py.
+     src/workspace_lens/tests/test_fitting.py, test_lenses.py and test_utils.py are derived
+     from its tests.
+   - The evaluation data in data/jlens/ (the lens-eval-*.json files, probe-swap.json and the
+     README files) is from that repository's data/ directory. The README files are trimmed to
+     the files shipped here. data/jlens/evaluations/model_correctness.csv is new: it records
+     which items Qwen3.6-27B answers correctly.
+
+2. R-Lens (Relevance Propagation Jacobian lens), by Camila Blank and Agam Bhatia.
+   https://huggingface.co/camilablank/workspace-lenses
+
+   The LRP backward-pass rules in src/workspace_lens/lrp/lrp.py (the LN rule on RMSNorms, the
+   identity and half rules on gated MLPs, and the mixture-of-experts and multi-stream rules) are
+   adapted from their implementation.

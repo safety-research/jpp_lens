@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jpp-lens"
+version = "0.1.0"
+description = "The J++ Lens: fitting, applying and evaluating workspace lenses with Jacobian filtering"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+authors = [{ name = "Kola Ayonrinde" }]
+urls = { Repository = "https://github.com/koayon/jpp_lens" }
+dependencies = [
+    "huggingface_hub==1.26.0",
+    "transformers==5.14.1",
+    "numpy==2.5.1",
+    "pandas==3.0.5",
+    "datasets==5.0.1",
+    "pyarrow==25.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "ruff==0.16.1"]
+# torch comes from one of these two mutually exclusive extras:
+# --extra cpu for CPU-only machines (tests), --extra cu128 for CUDA 12.8 GPUs.
+cpu = ["torch==2.13.0", "accelerate==1.12.0"]
+cu128 = ["torch==2.11.0", "accelerate==1.12.0"]
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cu128" }]]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu128", extra = "cu128" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "E741"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["src"]

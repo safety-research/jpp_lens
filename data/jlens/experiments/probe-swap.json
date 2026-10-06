@@ -1,0 +1,814 @@
+{
+  "items": [
+    {
+      "name": "amazon-language",
+      "category": "multihop",
+      "prompt": "Fact: The language spoken in the country where the Amazon River ends is ",
+      "intermediate": "Brazil",
+      "answer": "Portuguese",
+      "swap_to": "Mexico",
+      "swap_answer": "Spanish"
+    },
+    {
+      "name": "animal-cover-turtle",
+      "category": "animal-cover",
+      "prompt": "Fact: The hard covering on the back of the slow reptile that can pull its head inside its body is called a",
+      "intermediate": "turtle",
+      "answer": "shell",
+      "swap_to": "snake",
+      "swap_answer": "scale"
+    },
+    {
+      "name": "animal-legs-buffalo2",
+      "category": "animal-legs",
+      "prompt": "Fact: The number of legs on the large horned animal that roamed the American plains in huge herds is",
+      "intermediate": "buffalo",
+      "answer": "four",
+      "swap_to": "spider",
+      "swap_answer": "eight"
+    },
+    {
+      "name": "animal-nose-elephant",
+      "category": "animal-nose",
+      "prompt": "Fact: The long flexible body part that the largest land animal uses to pick things up is called a",
+      "intermediate": "elephant",
+      "answer": "trunk",
+      "swap_to": "snake",
+      "swap_answer": "tongue"
+    },
+    {
+      "name": "atomic-80-state",
+      "category": "multihop",
+      "prompt": "Fact: The state of matter at room temperature of the element with atomic number 80 is ",
+      "intermediate": "mercury",
+      "answer": "liquid",
+      "swap_to": "iron",
+      "swap_answer": "solid"
+    },
+    {
+      "name": "basketball-players",
+      "category": "multihop",
+      "prompt": "Fact: The number of players per side in the sport invented in Springfield, Massachusetts is ",
+      "intermediate": "basketball",
+      "answer": "5",
+      "swap_to": "baseball",
+      "swap_answer": "9"
+    },
+    {
+      "name": "beverage-source-wine",
+      "category": "beverage-source",
+      "prompt": "Fact: The fruit that the alcoholic drink served at communion is made from is the",
+      "intermediate": "wine",
+      "answer": "grape",
+      "swap_to": "beer",
+      "swap_answer": "barley"
+    },
+    {
+      "name": "bird-color-swan",
+      "category": "bird-color",
+      "prompt": "Fact: The color of the long-necked bird in the famous Tchaikovsky ballet is",
+      "intermediate": "swan",
+      "answer": "white",
+      "swap_to": "eagle",
+      "swap_answer": "brown"
+    },
+    {
+      "name": "bird-country-eagle",
+      "category": "bird-country",
+      "prompt": "Fact: The country whose national emblem is the bird with the white head on the Great Seal is",
+      "intermediate": "eagle",
+      "answer": "America",
+      "swap_to": "swan",
+      "swap_answer": "England"
+    },
+    {
+      "name": "bird-time-owl",
+      "category": "bird-time",
+      "prompt": "Fact: The time of day when the bird that hoots and can turn its head almost all the way around hunts is",
+      "intermediate": "owl",
+      "answer": "night",
+      "swap_to": "eagle",
+      "swap_answer": "day"
+    },
+    {
+      "name": "birthstone-emerald-month",
+      "category": "multihop",
+      "prompt": "Fact: Emerald is the birthstone for month number ",
+      "intermediate": "May",
+      "answer": "5",
+      "swap_to": "July",
+      "swap_answer": "7"
+    },
+    {
+      "name": "chem-atmosphere-Z",
+      "category": "multihop",
+      "prompt": "Fact: The atomic number of the gas that makes up about 78 percent of the atmosphere is ",
+      "intermediate": "nitrogen",
+      "answer": "7",
+      "swap_to": "oxygen",
+      "swap_answer": "8"
+    },
+    {
+      "name": "chem-bones-Z",
+      "category": "multihop",
+      "prompt": "Fact: The atomic number of the metal most abundant in human bones is ",
+      "intermediate": "calcium",
+      "answer": "20",
+      "swap_to": "iron",
+      "swap_answer": "26"
+    },
+    {
+      "name": "chem-organic-Z",
+      "category": "multihop",
+      "prompt": "Fact: The atomic number of the element present in all organic compounds by definition is ",
+      "intermediate": "carbon",
+      "answer": "6",
+      "swap_to": "oxygen",
+      "swap_answer": "8"
+    },
+    {
+      "name": "chem-photosynthesis-Z",
+      "category": "multihop",
+      "prompt": "Fact: The atomic number of the gas that plants release during photosynthesis is ",
+      "intermediate": "oxygen",
+      "answer": "8",
+      "swap_to": "nitrogen",
+      "swap_answer": "7"
+    },
+    {
+      "name": "christmas-season",
+      "category": "multihop",
+      "prompt": "Fact: The season when the holiday with a decorated tree occurs is ",
+      "intermediate": "Christmas",
+      "answer": "winter",
+      "swap_to": "Easter",
+      "swap_answer": "spring"
+    },
+    {
+      "name": "city-state-Philadelphia",
+      "category": "city-state",
+      "prompt": "Fact: The US state where the city famous for the Liberty Bell is located is",
+      "intermediate": "Philadelphia",
+      "answer": "Pennsylvania",
+      "swap_to": "Seattle",
+      "swap_answer": "Washington"
+    },
+    {
+      "name": "colosseum-currency",
+      "category": "multihop",
+      "prompt": "Fact: The currency used in the country where the Colosseum stands is the ",
+      "intermediate": "Italy",
+      "answer": "Euro",
+      "swap_to": "Mexico",
+      "swap_answer": "peso"
+    },
+    {
+      "name": "element-color-gold2",
+      "category": "element-color",
+      "prompt": "Fact: The color of the precious metal with atomic number 79 is",
+      "intermediate": "gold",
+      "answer": "yellow",
+      "swap_to": "silver",
+      "swap_answer": "gray"
+    },
+    {
+      "name": "etym-frigg-position",
+      "category": "multihop",
+      "prompt": "Fact: Counting Monday as day 1, the day of the week named after the Norse goddess Frigg is day number ",
+      "intermediate": "Friday",
+      "answer": "5",
+      "swap_to": "Thursday",
+      "swap_answer": "4"
+    },
+    {
+      "name": "etym-saturn-position",
+      "category": "multihop",
+      "prompt": "Fact: The planet named after the Roman god of agriculture and time is planet number ",
+      "intermediate": "Saturn",
+      "answer": "6",
+      "swap_to": "Jupiter",
+      "swap_answer": "5"
+    },
+    {
+      "name": "etym-wargod-month",
+      "category": "multihop",
+      "prompt": "Fact: The month named after the Roman god of war is month number ",
+      "intermediate": "March",
+      "answer": "3",
+      "swap_to": "June",
+      "swap_answer": "6"
+    },
+    {
+      "name": "ex-city-capital-Barcelona-Toronto",
+      "category": "city-capital",
+      "prompt": "Fact: The capital of the country where Barcelona is located is",
+      "intermediate": "Spain",
+      "answer": "Madrid",
+      "swap_to": "Canada",
+      "swap_answer": "Ottawa"
+    },
+    {
+      "name": "ex-city-capital-Lyon-Naples",
+      "category": "city-capital",
+      "prompt": "Fact: The capital of the country where Lyon is located is",
+      "intermediate": "France",
+      "answer": "Paris",
+      "swap_to": "Italy",
+      "swap_answer": "Rome"
+    },
+    {
+      "name": "ex-city-capital-Naples-Barcelona",
+      "category": "city-capital",
+      "prompt": "Fact: The capital of the country where Naples is located is",
+      "intermediate": "Italy",
+      "answer": "Rome",
+      "swap_to": "Spain",
+      "swap_answer": "Madrid"
+    },
+    {
+      "name": "ex-city-capital-Toronto-Lyon",
+      "category": "city-capital",
+      "prompt": "Fact: The capital of the country where Toronto is located is",
+      "intermediate": "Canada",
+      "answer": "Ottawa",
+      "swap_to": "France",
+      "swap_answer": "Paris"
+    },
+    {
+      "name": "ex-city-continent-Toronto-Lyon",
+      "category": "city-continent",
+      "prompt": "Fact: The continent of the country where Toronto is located is",
+      "intermediate": "Canada",
+      "answer": "North",
+      "swap_to": "France",
+      "swap_answer": "Europe"
+    },
+    {
+      "name": "ex-city-currency-Toronto-Beijing",
+      "category": "city-currency",
+      "prompt": "Fact: The currency used in the country where Toronto is located is the",
+      "intermediate": "Canada",
+      "answer": "Canadian",
+      "swap_to": "China",
+      "swap_answer": "yuan"
+    },
+    {
+      "name": "ex-city-currency-Toronto-Mumbai",
+      "category": "city-currency",
+      "prompt": "Fact: The currency used in the country where Toronto is located is the",
+      "intermediate": "Canada",
+      "answer": "Canadian",
+      "swap_to": "India",
+      "swap_answer": "rupee"
+    },
+    {
+      "name": "ex-city-language-Lyon-Naples",
+      "category": "city-language",
+      "prompt": "Fact: The language spoken in the country where Lyon is located is",
+      "intermediate": "France",
+      "answer": "French",
+      "swap_to": "Italy",
+      "swap_answer": "Italian"
+    },
+    {
+      "name": "ex-element-state-26-8",
+      "category": "element-state",
+      "prompt": "Fact: The state of matter at room temperature of the element with atomic number 26 is",
+      "intermediate": "iron",
+      "answer": "solid",
+      "swap_to": "oxygen",
+      "swap_answer": "gas"
+    },
+    {
+      "name": "ex-element-state-26-80",
+      "category": "element-state",
+      "prompt": "Fact: The state of matter at room temperature of the element with atomic number 26 is",
+      "intermediate": "iron",
+      "answer": "solid",
+      "swap_to": "mercury",
+      "swap_answer": "liquid"
+    },
+    {
+      "name": "ex-element-state-8-26",
+      "category": "element-state",
+      "prompt": "Fact: The state of matter at room temperature of the element with atomic number 8 is",
+      "intermediate": "oxygen",
+      "answer": "gas",
+      "swap_to": "iron",
+      "swap_answer": "solid"
+    },
+    {
+      "name": "ex-element-state-8-80",
+      "category": "element-state",
+      "prompt": "Fact: The state of matter at room temperature of the element with atomic number 8 is",
+      "intermediate": "oxygen",
+      "answer": "gas",
+      "swap_to": "mercury",
+      "swap_answer": "liquid"
+    },
+    {
+      "name": "ex-element-state-80-8",
+      "category": "element-state",
+      "prompt": "Fact: The state of matter at room temperature of the element with atomic number 80 is",
+      "intermediate": "mercury",
+      "answer": "liquid",
+      "swap_to": "oxygen",
+      "swap_answer": "gas"
+    },
+    {
+      "name": "ex-element-symbol-11-26",
+      "category": "element-symbol",
+      "prompt": "Fact: The chemical symbol for the element with atomic number 11 is",
+      "intermediate": "sodium",
+      "answer": "Na",
+      "swap_to": "iron",
+      "swap_answer": "Fe"
+    },
+    {
+      "name": "ex-element-symbol-26-79",
+      "category": "element-symbol",
+      "prompt": "Fact: The chemical symbol for the element with atomic number 26 is",
+      "intermediate": "iron",
+      "answer": "Fe",
+      "swap_to": "gold",
+      "swap_answer": "Au"
+    },
+    {
+      "name": "ex-planet-color-third-fourth",
+      "category": "planet-color",
+      "prompt": "Fact: The color of the planet third from the Sun is",
+      "intermediate": "Earth",
+      "answer": "blue",
+      "swap_to": "Mars",
+      "swap_answer": "red"
+    },
+    {
+      "name": "ex2-city-capital-Munich",
+      "category": "city-capital",
+      "prompt": "Fact: The capital of the country where Munich is located is",
+      "intermediate": "Germany",
+      "answer": "Berlin",
+      "swap_to": "Japan",
+      "swap_answer": "Tokyo"
+    },
+    {
+      "name": "ex2-city-capital-Osaka",
+      "category": "city-capital",
+      "prompt": "Fact: The capital of the country where Osaka is located is",
+      "intermediate": "Japan",
+      "answer": "Tokyo",
+      "swap_to": "Germany",
+      "swap_answer": "Berlin"
+    },
+    {
+      "name": "ex2-city-continent-Lima",
+      "category": "city-continent",
+      "prompt": "Fact: The continent of the country where Lima is located is",
+      "intermediate": "Peru",
+      "answer": "South",
+      "swap_to": "Egypt",
+      "swap_answer": "Africa"
+    },
+    {
+      "name": "ex2-city-continent-Sydney",
+      "category": "city-continent",
+      "prompt": "Fact: The continent of the country where Sydney is located is",
+      "intermediate": "Australia",
+      "answer": "Australia",
+      "swap_to": "Peru",
+      "swap_answer": "South"
+    },
+    {
+      "name": "ex2-city-language-Cairo",
+      "category": "city-language",
+      "prompt": "Fact: The language spoken in the country where Cairo is located is",
+      "intermediate": "Egypt",
+      "answer": "Arabic",
+      "swap_to": "Russia",
+      "swap_answer": "Russian"
+    },
+    {
+      "name": "ex2-city-language-Moscow",
+      "category": "city-language",
+      "prompt": "Fact: The language spoken in the country where Moscow is located is",
+      "intermediate": "Russia",
+      "answer": "Russian",
+      "swap_to": "Egypt",
+      "swap_answer": "Arabic"
+    },
+    {
+      "name": "ex2-language-capital-Greek",
+      "category": "language-capital",
+      "prompt": "Fact: The capital of the country where Greek is the primary language is",
+      "intermediate": "Greece",
+      "answer": "Athens",
+      "swap_to": "Sweden",
+      "swap_answer": "Stockholm"
+    },
+    {
+      "name": "ex2-language-capital-Hungarian",
+      "category": "language-capital",
+      "prompt": "Fact: The capital of the country where Hungarian is the primary language is",
+      "intermediate": "Hungary",
+      "answer": "Budapest",
+      "swap_to": "Poland",
+      "swap_answer": "Warsaw"
+    },
+    {
+      "name": "ex2-language-capital-Polish",
+      "category": "language-capital",
+      "prompt": "Fact: The capital of the country where Polish is the primary language is",
+      "intermediate": "Poland",
+      "answer": "Warsaw",
+      "swap_to": "Greece",
+      "swap_answer": "Athens"
+    },
+    {
+      "name": "ex2-language-capital-Swedish",
+      "category": "language-capital",
+      "prompt": "Fact: The capital of the country where Swedish is the primary language is",
+      "intermediate": "Sweden",
+      "answer": "Stockholm",
+      "swap_to": "Hungary",
+      "swap_answer": "Budapest"
+    },
+    {
+      "name": "ex2-river-capital-Thames",
+      "category": "river-capital",
+      "prompt": "Fact: The capital of the country where the Thames River reaches the sea is",
+      "intermediate": "England",
+      "answer": "London",
+      "swap_to": "Germany",
+      "swap_answer": "Berlin"
+    },
+    {
+      "name": "food-animal-butter",
+      "category": "food-animal",
+      "prompt": "Fact: The animal that produces the yellow dairy spread used on bread is the",
+      "intermediate": "butter",
+      "answer": "cow",
+      "swap_to": "honey",
+      "swap_answer": "bee"
+    },
+    {
+      "name": "food-animal-honey",
+      "category": "food-animal",
+      "prompt": "Fact: The insect that produces the sweet golden substance spread on toast is the",
+      "intermediate": "honey",
+      "answer": "bee",
+      "swap_to": "butter",
+      "swap_answer": "cow"
+    },
+    {
+      "name": "fruit-grows-grape",
+      "category": "fruit-grows",
+      "prompt": "Fact: The kind of plant that the small round fruit used to make wine grows on is a",
+      "intermediate": "grape",
+      "answer": "vine",
+      "swap_to": "apple",
+      "swap_answer": "tree"
+    },
+    {
+      "name": "func-filters-count",
+      "category": "multihop",
+      "prompt": "Fact: In humans, the number of organs that filter blood to make urine is ",
+      "intermediate": "kidney",
+      "answer": "2",
+      "swap_to": "liver",
+      "swap_answer": "1"
+    },
+    {
+      "name": "func-pumps-chambers",
+      "category": "multihop",
+      "prompt": "Fact: In humans, the organ that pumps blood through the body has this many chambers: ",
+      "intermediate": "heart",
+      "answer": "4",
+      "swap_to": "lung",
+      "swap_answer": "2"
+    },
+    {
+      "name": "gem-color-ruby",
+      "category": "gem-color",
+      "prompt": "Fact: The color of the gemstone that is the traditional birthstone for July is",
+      "intermediate": "ruby",
+      "answer": "red",
+      "swap_to": "pearl",
+      "swap_answer": "white"
+    },
+    {
+      "name": "gem-source-pearl",
+      "category": "gem-source",
+      "prompt": "Fact: The animal that produces the round gem traditionally worn as a necklace by brides is the",
+      "intermediate": "pearl",
+      "answer": "oyster",
+      "swap_to": "diamond",
+      "swap_answer": "earth"
+    },
+    {
+      "name": "greatwall-ocean",
+      "category": "multihop",
+      "prompt": "Fact: The ocean east of the country that built the Great Wall is the ",
+      "intermediate": "China",
+      "answer": "Pacific",
+      "swap_to": "Brazil",
+      "swap_answer": "Atlantic"
+    },
+    {
+      "name": "holiday-month-christmas2",
+      "category": "holiday-month",
+      "prompt": "Fact: The month of the holiday celebrated with a decorated evergreen tree and gift-giving is",
+      "intermediate": "Christmas",
+      "answer": "December",
+      "swap_to": "Easter",
+      "swap_answer": "April"
+    },
+    {
+      "name": "instr-body-trumpet",
+      "category": "instr-played",
+      "prompt": "Fact: The part of the body a player buzzes to play the valved brass instrument heard in jazz solos is the",
+      "intermediate": "trumpet",
+      "answer": "lips",
+      "swap_to": "drums",
+      "swap_answer": "hands"
+    },
+    {
+      "name": "instr-hit-drums",
+      "category": "instr-played",
+      "prompt": "Fact: The pair of wooden objects used to strike the instrument that keeps the beat at the back of a rock band is called",
+      "intermediate": "drums",
+      "answer": "sticks",
+      "swap_to": "piano",
+      "swap_answer": "keys"
+    },
+    {
+      "name": "mars-color",
+      "category": "multihop",
+      "prompt": "Fact: The color of the planet fourth from the Sun is ",
+      "intermediate": "Mars",
+      "answer": "red",
+      "swap_to": "Earth",
+      "swap_answer": "blue"
+    },
+    {
+      "name": "month-3-godof",
+      "category": "multihop",
+      "prompt": "Fact: The third month of the year is named after the Roman god of ",
+      "intermediate": "Mars",
+      "answer": "war",
+      "swap_to": "Venus",
+      "swap_answer": "love"
+    },
+    {
+      "name": "organ-acid-stomach",
+      "category": "organ-function",
+      "prompt": "Fact: The strong liquid inside the organ that breaks down swallowed food is called",
+      "intermediate": "stomach",
+      "answer": "acid",
+      "swap_to": "heart",
+      "swap_answer": "blood"
+    },
+    {
+      "name": "organ-count-kidney2",
+      "category": "organ-count",
+      "prompt": "Fact: The number of the bean-shaped organs that filter blood into urine in a human body is",
+      "intermediate": "kidney",
+      "answer": "two",
+      "swap_to": "heart",
+      "swap_answer": "one"
+    },
+    {
+      "name": "organ-location-brain",
+      "category": "organ-location",
+      "prompt": "Fact: The bony structure that encases the organ responsible for thinking and memory is the",
+      "intermediate": "brain",
+      "answer": "skull",
+      "swap_to": "heart",
+      "swap_answer": "ribcage"
+    },
+    {
+      "name": "organ-location-heart",
+      "category": "organ-location",
+      "prompt": "Fact: The part of the body that contains the organ that pumps blood is the",
+      "intermediate": "heart",
+      "answer": "chest",
+      "swap_to": "brain",
+      "swap_answer": "head"
+    },
+    {
+      "name": "osu-rival-mascot",
+      "category": "multihop",
+      "prompt": "Fact: The mascot of the college football rival of Ohio State is a ",
+      "intermediate": "Michigan",
+      "answer": "wolverine",
+      "swap_to": "Wisconsin",
+      "swap_answer": "badger"
+    },
+    {
+      "name": "paper-continent",
+      "category": "multihop",
+      "prompt": "Fact: The continent where the country that invented paper is located is ",
+      "intermediate": "China",
+      "answer": "Asia",
+      "swap_to": "France",
+      "swap_answer": "Europe"
+    },
+    {
+      "name": "person-century-lincoln",
+      "category": "person-century",
+      "prompt": "Fact: The war that the president who delivered the Gettysburg Address led his country through was the",
+      "intermediate": "Lincoln",
+      "answer": "Civil",
+      "swap_to": "Napoleon",
+      "swap_answer": "Napoleonic"
+    },
+    {
+      "name": "person-country-napoleon",
+      "category": "person-country",
+      "prompt": "Fact: The country whose army was led by the emperor defeated at Waterloo is",
+      "intermediate": "Napoleon",
+      "answer": "France",
+      "swap_to": "Lincoln",
+      "swap_answer": "America"
+    },
+    {
+      "name": "person-country-shakespeare",
+      "category": "person-country",
+      "prompt": "Fact: The country where the playwright who wrote Hamlet and Macbeth was born is",
+      "intermediate": "Shakespeare",
+      "answer": "England",
+      "swap_to": "Einstein",
+      "swap_answer": "Germany"
+    },
+    {
+      "name": "person-firstname-darwin",
+      "category": "person-firstname",
+      "prompt": "Fact: The first name of the naturalist who proposed evolution by natural selection was",
+      "intermediate": "Darwin",
+      "answer": "Charles",
+      "swap_to": "Einstein",
+      "swap_answer": "Albert"
+    },
+    {
+      "name": "person-firstname-einstein",
+      "category": "person-firstname",
+      "prompt": "Fact: The first name of the physicist who developed the theory of general relativity was",
+      "intermediate": "Einstein",
+      "answer": "Albert",
+      "swap_to": "Newton",
+      "swap_answer": "Isaac"
+    },
+    {
+      "name": "person-firstname-mozart",
+      "category": "person-firstname",
+      "prompt": "Fact: The first name of the child-prodigy composer from Salzburg who wrote The Magic Flute was",
+      "intermediate": "Mozart",
+      "answer": "Wolfgang",
+      "swap_to": "Darwin",
+      "swap_answer": "Charles"
+    },
+    {
+      "name": "person-firstname-newton",
+      "category": "person-firstname",
+      "prompt": "Fact: The first name of the scientist on whose head an apple is said to have fallen was",
+      "intermediate": "Newton",
+      "answer": "Isaac",
+      "swap_to": "Shakespeare",
+      "swap_answer": "William"
+    },
+    {
+      "name": "person-firstname-shakespeare",
+      "category": "person-firstname",
+      "prompt": "Fact: The first name of the playwright who wrote Romeo and Juliet was",
+      "intermediate": "Shakespeare",
+      "answer": "William",
+      "swap_to": "Mozart",
+      "swap_answer": "Wolfgang"
+    },
+    {
+      "name": "planet-3-moons",
+      "category": "multihop",
+      "prompt": "Fact: The number of natural moons orbiting the planet third from the Sun is ",
+      "intermediate": "Earth",
+      "answer": "1",
+      "swap_to": "Mars",
+      "swap_answer": "2"
+    },
+    {
+      "name": "planet-rings-saturn2",
+      "category": "planet-feature",
+      "prompt": "Fact: The most famous feature of the sixth planet from the Sun is its",
+      "intermediate": "Saturn",
+      "answer": "rings",
+      "swap_to": "Jupiter",
+      "swap_answer": "spot"
+    },
+    {
+      "name": "rhyme-chair-flag",
+      "category": "multihop",
+      "prompt": "Fact: The large mammal whose name rhymes with 'chair' appears on the state flag of ",
+      "intermediate": "bear",
+      "answer": "California",
+      "swap_to": "buffalo",
+      "swap_answer": "Wyoming"
+    },
+    {
+      "name": "rhyme-rain-neighbor",
+      "category": "multihop",
+      "prompt": "Fact: The European country whose name rhymes with 'rain' shares its western border with ",
+      "intermediate": "Spain",
+      "answer": "Portugal",
+      "swap_to": "Belgium",
+      "swap_answer": "France"
+    },
+    {
+      "name": "rhyme-spoon-orbit",
+      "category": "multihop",
+      "prompt": "Fact: The celestial body whose name rhymes with 'spoon' orbits the planet called ",
+      "intermediate": "moon",
+      "answer": "Earth",
+      "swap_to": "Europa",
+      "swap_answer": "Jupiter"
+    },
+    {
+      "name": "season-next-winter",
+      "category": "season-next",
+      "prompt": "Fact: The season that comes immediately after the coldest season of the year is",
+      "intermediate": "winter",
+      "answer": "spring",
+      "swap_to": "summer",
+      "swap_answer": "autumn"
+    },
+    {
+      "name": "spaceneedle-border",
+      "category": "multihop",
+      "prompt": "Fact: The US state where the Space Needle is located shares its northern border with ",
+      "intermediate": "Seattle",
+      "answer": "Canada",
+      "swap_to": "Philadelphia",
+      "swap_answer": "New"
+    },
+    {
+      "name": "spider-legs",
+      "category": "multihop",
+      "prompt": "Fact: The number of legs on the animal that spins webs is ",
+      "intermediate": "spider",
+      "answer": "8",
+      "swap_to": "ant",
+      "swap_answer": "6"
+    },
+    {
+      "name": "sport-equip-tennis",
+      "category": "sport-equip",
+      "prompt": "Fact: The piece of equipment used to strike the ball in the sport played at Wimbledon is a",
+      "intermediate": "tennis",
+      "answer": "racket",
+      "swap_to": "golf",
+      "swap_answer": "club"
+    },
+    {
+      "name": "super-populous-capital",
+      "category": "multihop",
+      "prompt": "Fact: The capital city of the most populous country in the world is ",
+      "intermediate": "China",
+      "answer": "Beijing",
+      "swap_to": "India",
+      "swap_answer": "Delhi"
+    },
+    {
+      "name": "super-smallest-continent",
+      "category": "multihop",
+      "prompt": "Fact: The smallest country in the world is located on the continent of ",
+      "intermediate": "Vatican",
+      "answer": "Europe",
+      "swap_to": "Singapore",
+      "swap_answer": "Asia"
+    },
+    {
+      "name": "tree-product-oak",
+      "category": "tree-product",
+      "prompt": "Fact: The small hard nut produced by the large tree that squirrels famously bury food from is the",
+      "intermediate": "oak",
+      "answer": "acorn",
+      "swap_to": "pine",
+      "swap_answer": "cone"
+    },
+    {
+      "name": "vehicle-power-bicycle",
+      "category": "vehicle-power",
+      "prompt": "Fact: The source of power for the two-wheeled vehicle ridden in the Tour de France is the rider's",
+      "intermediate": "bicycle",
+      "answer": "legs",
+      "swap_to": "train",
+      "swap_answer": "engine"
+    },
+    {
+      "name": "violin-strings",
+      "category": "multihop",
+      "prompt": "Fact: The number of strings on the instrument that fiddlers play is ",
+      "intermediate": "violin",
+      "answer": "4",
+      "swap_to": "guitar",
+      "swap_answer": "6"
+    }
+  ]
+}
