@@ -1,7 +1,7 @@
 # J++ Lens
 
 Code, evaluations and a released lens for the paper *J++ Lens: Jacobian Filtering Enables More
-Faithful Workspace Lenses* (Kola Ayonrinde, 2026).
+Faithful Workspace Lenses* (Ayonrinde & Lindsey, 2026).
 
 A *workspace lens* reads an intermediate activation of a language model as the tokens the model is
 disposed to say. The J-Lens ([Gurnee et al., 2026](https://transformer-circuits.pub/2026/workspace/index.html))
