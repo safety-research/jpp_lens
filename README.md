@@ -1,6 +1,6 @@
 # J++ Lens
 
-Code, evaluations and a released lens for the paper *J++ Lens: Jacobian Filtering Enables More
+Code and evaluations for the paper *J++ Lens: Jacobian Filtering Enables More
 Faithful Workspace Lenses* (Ayonrinde & Lindsey, 2026).
 
 A *workspace lens* reads an intermediate activation of a language model as the tokens the model is
