@@ -93,15 +93,13 @@ mask the ids from `lens_evals.readout_evals.readout_eval_items.non_semantic_toke
 ranking (the quickstart shows how). `workspace_lens.utils.load_lens_file` reads local lens files
 of either format: this library's, and that of the released J-Lens and R-Lens files on the Hub.
 
-## The released lens
+## The released lenses
 
-[`koayon/jpp-lenses`](https://huggingface.co/koayon/jpp-lenses), file `qwen3.6-27b/lens.pt`
-(6.6 GB): one fp32 `[5120, 5120]` map for each of Qwen3.6-27B's layers 0 to 62, transported to the
-final block (layer 63). The file holds the maps, the layer list and the fitting config;
+Released lenses can be found on HuggingFace at 
+[`koayon/jpp-lenses`](https://huggingface.co/koayon/jpp-lenses). 
+The .pt files holds the maps, the layer list and the fitting config;
 `BaseLens.from_pretrained` reads it with `torch.load(weights_only=True)`.
 
-It is the paper's recipe: 64 WikiText-103 sequences of 128 tokens (the first 16 positions and the
-final position dropped), E = 8 expert Jacobians per layer under the LRP backward pass.
 
 ## How the J++ Lens is fitted
 
