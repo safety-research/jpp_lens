@@ -1,6 +1,6 @@
 # J++ Lens
 
-Code and evaluations for the paper *J++ Lens: Jacobian Filtering Enables More
+Code and evaluations for the project *J++ Lens: Jacobian Filtering Enables More
 Faithful Workspace Lenses* (Ayonrinde & Lindsey, 2026).
 
 A *workspace lens* reads an intermediate activation of a language model as the tokens the model is
@@ -128,9 +128,9 @@ inference the lens is one linear map per layer.
 |---|---|
 | E (experts per layer) | `num_clusters`, `--num-clusters`; checkpoint names use `K` |
 | Expert Jacobians, expert weights | `ExpertJacobians`, `ExpertWeighting` (`fitting/condense_experts/`) |
-| LRP backward pass | `lrp_mode="rlens"` (`lrp/lrp.py`; R-Lens literature calls it RelP) |
+| LRP backward pass | `lrp_mode="rlens"` |
 | Readout Filtering | `excluded_token_ids` from `non_semantic_token_ids` |
-| Recall@k | `pass_at_k` columns; item-weighted (the paper's) and pair-weighted |
+| Recall@k | `pass_at_k` columns |
 | Target layer 63 | `relative_end_transport_layer = -1` (the final block) |
 
 ## Repository layout
@@ -153,11 +153,6 @@ src/jlens/                  model hooks and Hugging Face adapter (from anthropic
 data/jlens/                 evaluation items (from anthropics/jacobian-lens) and model correctness
 assets/figure1.png          Figure 1 of the paper (this README)
 ```
-
-The library also supports the other architectures in the paper (Qwen3.5/3.6 dense and
-mixture-of-experts, e.g. Qwen3.6-35B-A3B; Gemma 4; Olmo 3; DeepSeek-V4-Flash): see the presets in
-`lrp/lrp.py` and the `--device-map`, `--experts-implementation`, `--attn-implementation` and
-`--dequantize-fp8` flags.
 
 ## Tests
 
