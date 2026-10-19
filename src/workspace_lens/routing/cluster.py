@@ -159,9 +159,17 @@ def collect_valid_position_activations(
     ``{layer: [total_positions, d_model]}`` as fp32 CPU tensors; prompts
     too short to leave any valid position are skipped with a warning.
     """
-    collected_activations_L_dict_list_PN: dict[int, list[t.Tensor]] = {
-        layer: [] for layer in layers
+    # One fp32 CPU buffer per layer, sized for every prompt at full length, filled in place
+    # and narrowed to the rows written. Collecting per-prompt chunks and concatenating them
+    # at the end holds the pool twice (the chunks and their concatenation; glibc does not
+    # hand the freed chunks back), and the pool is large: 1000 prompts x 111 positions x
+    # d_model in fp32 is 2.4 GB per layer at d_model 5376, 147 GB over the 61 source layers
+    # of a 62-block model. Untouched rows of the buffers cost no resident memory.
+    max_rows = len(prompts) * max_seq_len
+    pooled_activations_L_dict_PN: dict[int, t.Tensor] = {
+        layer: t.empty((max_rows, model.d_model), dtype=t.float32) for layer in layers
     }
+    num_rows = 0
     for prompt_idx, prompt in enumerate(prompts):
         input_ids_Int_1S, activations_L_dict_SN = record_activations(
             model, prompt, max_seq_len, list(layers)
@@ -174,13 +182,15 @@ def collect_valid_position_activations(
             logger.warning("  skipping clustering prompt %d: %s", prompt_idx, exc)
             continue
         source_positions_Int_P = t.where(mask_Bool_S)[0]
+        end_row = num_rows + int(source_positions_Int_P.numel())
         for layer in layers:
-            collected_activations_L_dict_list_PN[layer].append(
-                activations_L_dict_SN[layer][source_positions_Int_P].float().cpu()
+            pooled_activations_L_dict_PN[layer][num_rows:end_row].copy_(
+                activations_L_dict_SN[layer][source_positions_Int_P]
             )
+        num_rows = end_row
 
-    if not collected_activations_L_dict_list_PN[layers[0]]:
+    if num_rows == 0:
         raise ValueError("no prompt was long enough to collect activations from")
     return {
-        layer: t.cat(collected_activations_L_dict_list_PN[layer]) for layer in layers
+        layer: pooled_PN[:num_rows] for layer, pooled_PN in pooled_activations_L_dict_PN.items()
     }

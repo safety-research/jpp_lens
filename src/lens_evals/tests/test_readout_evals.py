@@ -6,6 +6,7 @@ tokenizer. The pass@k summaries are tested in ``test_readout_eval_scoring.py``."
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -13,9 +14,11 @@ import torch
 
 from lens_evals.eval_utils import (
     candidate_token_ids,
+    grading_prompt,
     next_token_matches_target,
     surface_forms,
 )
+from lens_evals.readout_evals import readout_evals
 from lens_evals.readout_evals.readout_eval_items import (
     DEFAULT_FIT_FRACTION,
     MACRO_EVALS,
@@ -87,6 +90,51 @@ def test_next_token_matches_target() -> None:
     assert not next_token_matches_target("atl", "Atlantic")  # case-sensitive
     assert not next_token_matches_target(" ", "Atlantic")  # whitespace-only
     assert not next_token_matches_target("Pacific", "Atlantic")
+
+
+class _SpaceFoldingTokenizer(CharTokenizer):
+    """The char tokenizer with SentencePiece's space folding: a space before a
+    letter is absorbed into the letter's token (" d" is the one id of "d"), a
+    space before a digit or anything else stays its own token."""
+
+    def __call__(self, text: str, **kwargs) -> SimpleNamespace:
+        if text[:1] == " " and text[1:2].isalpha():
+            text = text[1:]
+        return super().__call__(text, **kwargs)
+
+
+def test_grading_prompt_cuts_at_the_tokenizers_word_boundary() -> None:
+    tokenizer = _SpaceFoldingTokenizer()
+    assert grading_prompt(tokenizer, "the face of ", "death") == "the face of"  # folded
+    assert grading_prompt(tokenizer, "3 + 17 = ", "20") == "3 + 17 = "  # lone space
+    assert grading_prompt(tokenizer, "the face of", "death") == "the face of"  # as written
+    assert grading_prompt(CharTokenizer(), "the face of ", "death") == "the face of "
+
+
+def test_grade_model_correctness_at_token_boundary_grades_the_cut_prompt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``at_token_boundary`` hands the greedy step the cut prompt for a word
+    target and the prompt as written for a digit one; off, every prompt as written."""
+    model = make_tiny_decoder(_SpaceFoldingTokenizer())
+    runner = ReadoutEvalRunner(model, {}, layers=[0], max_seq_len=32)
+    items = [
+        ReadoutEvalItem("multihop", "word", "ab\ncd ", "d", ("d",)),
+        ReadoutEvalItem("order-ops", "digit", "a = ", "2", ("2",)),
+    ]
+    graded_prompts: list[str] = []
+    model_logits = readout_evals.final_position_model_logits
+
+    def recording_logits(model, prompt, max_seq_len):
+        graded_prompts.append(prompt)
+        return model_logits(model, prompt, max_seq_len)
+
+    monkeypatch.setattr(readout_evals, "final_position_model_logits", recording_logits)
+    runner.grade_model_correctness(items, hf_model_name="tiny", at_token_boundary=True)
+    assert graded_prompts == ["ab\ncd", "a = "]
+    graded_prompts.clear()
+    runner.grade_model_correctness(items, hf_model_name="tiny")
+    assert graded_prompts == ["ab\ncd ", "a = "]
 
 
 def test_readout_position() -> None:

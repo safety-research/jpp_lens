@@ -160,11 +160,12 @@ def load_recipe_items(
     data_dir: str = READOUT_EVALS_DATA_DIR,
     correctness_csv: str = MODEL_CORRECTNESS_CSV,
     hf_model_name: str = RECIPE_HF_MODEL_NAME,
+    slugs: Sequence[str] = MACRO_EVALS,
 ) -> list[ReadoutEvalItem]:
-    """The default item list: the five :data:`MACRO_EVALS` (in that order),
-    correctness-filtered with the recorded CSV."""
+    """The default item list: the five :data:`MACRO_EVALS` (in that order), or the
+    ``slugs`` given, correctness-filtered with the recorded CSV."""
     return filter_items_by_correctness(
-        load_readout_eval_items(data_dir, slugs=MACRO_EVALS),
+        load_readout_eval_items(data_dir, slugs=slugs),
         hf_model_name=hf_model_name,
         correctness_csv=correctness_csv,
     )

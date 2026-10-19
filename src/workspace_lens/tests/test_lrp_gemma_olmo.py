@@ -1,5 +1,5 @@
-"""Tests for the Gemma 4 and OLMo 3 LRP patchers, mirroring test_lrp.py's
-guarantees on these two module families:
+"""Tests for the Gemma 3, Gemma 4 and OLMo 3 LRP patchers, mirroring test_lrp.py's
+guarantees on these module families:
 
 1. Forward values are unchanged: bit-exact under the detach-only rules
    (LN-rule, half-rule); equal up to kernel dust under the identity rule,
@@ -7,12 +7,12 @@ guarantees on these two module families:
    "tanh")`` on Gemma and the SiLU rewrite on OLMo.
 2. The patch report covers exactly the residual-stream norms (Gemma's four per
    block, OLMo's two post-sublayer norms, the final norm) and every block MLP,
-   and leaves the attention-internal norms (q_norm, k_norm, Gemma's v_norm)
-   alone.
+   and leaves the attention-internal norms (q_norm, k_norm, Gemma 4's v_norm)
+   and the multimodal wrappers' towers, embedders and projector alone.
 3. Gradients follow the rules: the LN-rule gives the fixed diagonal scale with
-   the plain weight (Gemma stores w, not 1 + w; OLMo applies w in fp32 before
-   the cast); the GELU identity rule matches a reference built from the
-   module's own weights in value and gradient.
+   the stored weight (Gemma 4 stores w, OLMo applies w in fp32 before the
+   cast, Gemma 3 scales by 1 + w like Qwen3.5); the GELU identity rule matches
+   a reference built from the module's own weights in value and gradient.
 4. Exiting the context restores stock behaviour bit-exactly.
 """
 
@@ -37,6 +37,8 @@ from workspace_lens.lrp.lrp import (
 )
 from workspace_lens.tests.tiny_gemma_olmo import (
     TINY_D_MODEL,
+    build_tiny_gemma3,
+    build_tiny_gemma3_multimodal,
     build_tiny_gemma4,
     build_tiny_gemma4_multimodal,
     build_tiny_olmo3,
@@ -73,6 +75,11 @@ def tiny_gemma():
 
 
 @pytest.fixture(scope="module")
+def tiny_gemma3():
+    return build_tiny_gemma3()
+
+
+@pytest.fixture(scope="module")
 def tiny_olmo():
     return build_tiny_olmo3()
 
@@ -82,9 +89,15 @@ def input_ids_Int_1S() -> t.Tensor:
     return random_tiny_input_ids()
 
 
-@pytest.fixture(params=["gemma", "olmo"])
-def tiny_model(request, tiny_gemma, tiny_olmo):
-    return tiny_gemma if request.param == "gemma" else tiny_olmo
+@pytest.fixture(params=["gemma", "gemma3", "olmo"])
+def tiny_model(request, tiny_gemma, tiny_gemma3, tiny_olmo):
+    return {"gemma": tiny_gemma, "gemma3": tiny_gemma3, "olmo": tiny_olmo}[request.param]
+
+
+@pytest.fixture(params=["gemma", "gemma3"])
+def tiny_gelu_model(request, tiny_gemma, tiny_gemma3):
+    """The two GELU-tanh families the identity rule rewrites."""
+    return tiny_gemma if request.param == "gemma" else tiny_gemma3
 
 
 ### 1. FORWARD VALUES
@@ -146,6 +159,18 @@ def test_gemma_patch_report_covers_block_norms_and_mlps_not_attention_norms(tiny
     assert not any(".self_attn." in name for name in report.ln_rule)
 
 
+def test_gemma3_patch_report_covers_block_norms_and_mlps_not_attention_norms(tiny_gemma3):
+    with apply_lrp_rules(tiny_gemma3, FULL_RULES) as report:
+        pass
+    num_layers = len(tiny_gemma3.model.layers)
+    assert set(report.ln_rule) == residual_norm_names("model", num_layers, GEMMA_BLOCK_NORMS)
+    assert set(report.mlp_rule) == {f"model.layers.{i}.mlp" for i in range(num_layers)}
+    # Gemma 3's attention holds q_norm and k_norm, both Gemma3RMSNorm, and no v_norm.
+    attention = tiny_gemma3.model.layers[0].self_attn
+    assert type(attention.q_norm).__name__ == "Gemma3RMSNorm" and not hasattr(attention, "v_norm")
+    assert not any(".self_attn." in name for name in report.ln_rule)
+
+
 def test_olmo_patch_report_covers_post_sublayer_norms_and_mlps(tiny_olmo):
     with apply_lrp_rules(tiny_olmo, FULL_RULES) as report:
         pass
@@ -173,6 +198,7 @@ def test_attention_internal_and_tower_name_rules():
     assert is_multimodal_tower_module("vision_tower.encoder.layers.0.mlp")
     assert is_multimodal_tower_module("model.audio_tower.layers.0.norm_pre_attn")
     assert is_multimodal_tower_module("model.embed_vision.embedding_pre_projection_norm")
+    assert is_multimodal_tower_module("model.multi_modal_projector.mm_soft_emb_norm")
     assert not is_multimodal_tower_module("model.language_model.layers.0.mlp")
 
 
@@ -203,6 +229,33 @@ def test_multimodal_wrapper_patches_only_the_text_decoder():
     assert t.allclose(stock_BSN, patched_BSN, rtol=1e-4, atol=1e-5)
 
 
+def test_gemma3_multimodal_wrapper_skips_the_projector_norm():
+    # The real gemma-3-27b-it is a Gemma3ForConditionalGeneration: a SigLIP tower
+    # (LayerNorms, fc1/fc2 MLPs) and the multi_modal_projector, whose
+    # mm_soft_emb_norm is a Gemma3RMSNorm the text forward never runs, sit beside
+    # the text decoder at model.language_model. The surgery must patch exactly
+    # the decoder's residual-stream norms and MLPs and leave the projector alone.
+    wrapper = build_tiny_gemma3_multimodal()
+    projector_norm = wrapper.model.multi_modal_projector.mm_soft_emb_norm
+    assert type(projector_norm).__name__ == "Gemma3RMSNorm"
+    with apply_lrp_rules(wrapper, FULL_RULES) as report:
+        assert "forward" not in projector_norm.__dict__
+        input_ids_Int_1S = random_tiny_input_ids()
+        with t.no_grad():
+            patched_BSN = wrapper.model.language_model(
+                input_ids=input_ids_Int_1S, use_cache=False
+            ).last_hidden_state
+    num_layers = len(wrapper.model.language_model.layers)
+    prefix = "model.language_model"
+    assert set(report.ln_rule) == residual_norm_names(prefix, num_layers, GEMMA_BLOCK_NORMS)
+    assert set(report.mlp_rule) == {f"{prefix}.layers.{i}.mlp" for i in range(num_layers)}
+    with t.no_grad():
+        stock_BSN = wrapper.model.language_model(
+            input_ids=input_ids_Int_1S, use_cache=False
+        ).last_hidden_state
+    assert t.allclose(stock_BSN, patched_BSN, rtol=1e-4, atol=1e-5)
+
+
 ### 3. GRADIENTS
 
 
@@ -210,11 +263,18 @@ def _rmsnorm_eps(rmsnorm) -> float:
     return getattr(rmsnorm, "eps", None) or rmsnorm.variance_epsilon
 
 
-def test_ln_rule_gradient_is_fixed_diagonal_scale_with_plain_weight(tiny_model):
-    # LN-rule: y = x * [rsqrt(mean(x^2) + eps)]detached * w, so the input
-    # gradient must be exactly cotangent * w * scale, with no projection term
-    # from the variance. Both families store the plain weight w (Qwen3.5's
-    # 1 + w convention does not apply).
+def _rmsnorm_scale_weight(rmsnorm) -> t.Tensor:
+    """The factor the norm multiplies the normalised input by: ``1 + w`` for Gemma 3's
+    zero-initialised weight (Qwen3.5's convention), the stored ``w`` for Gemma 4 and OLMo."""
+    if type(rmsnorm).__name__ == "Gemma3RMSNorm":
+        return 1.0 + rmsnorm.weight
+    return rmsnorm.weight
+
+
+def test_ln_rule_gradient_is_fixed_diagonal_scale_with_the_norm_weight(tiny_model):
+    # LN-rule: y = x * [rsqrt(mean(x^2) + eps)]detached * w_eff, so the input
+    # gradient must be exactly cotangent * w_eff * scale, with no projection
+    # term from the variance (w_eff: _rmsnorm_scale_weight).
     rmsnorm = tiny_model.model.norm
     generator = t.Generator().manual_seed(2)
     x_SN = t.randn(5, TINY_D_MODEL, generator=generator, requires_grad=True)
@@ -224,23 +284,23 @@ def test_ln_rule_gradient_is_fixed_diagonal_scale_with_plain_weight(tiny_model):
         (patched_grad_SN,) = t.autograd.grad(rmsnorm(x_SN), x_SN, cotangent_SN)
 
     scale_S1 = t.rsqrt(x_SN.detach().pow(2).mean(-1, keepdim=True) + _rmsnorm_eps(rmsnorm))
-    expected_grad_SN = cotangent_SN * rmsnorm.weight * scale_S1
+    expected_grad_SN = cotangent_SN * _rmsnorm_scale_weight(rmsnorm) * scale_S1
     assert t.allclose(patched_grad_SN, expected_grad_SN, rtol=1e-5, atol=1e-7)
 
     (stock_grad_SN,) = t.autograd.grad(rmsnorm(x_SN), x_SN, cotangent_SN)
     assert not t.allclose(patched_grad_SN, stock_grad_SN, rtol=1e-3, atol=1e-5)
 
 
-def test_gelu_identity_rule_matches_reference_implementation(tiny_gemma):
+def test_gelu_identity_rule_matches_reference_implementation(tiny_gelu_model):
     # Independent reference built from the module's own weights: the patched
     # MLP must equal down((z * gate(z).detach()) * up(x)) in value and gradient,
     # with gate the tanh-approximation factor of gelu_pytorch_tanh.
-    mlp = tiny_gemma.model.layers[0].mlp
+    mlp = tiny_gelu_model.model.layers[0].mlp
     generator = t.Generator().manual_seed(3)
     x_SN = t.randn(5, TINY_D_MODEL, generator=generator, requires_grad=True)
     cotangent_SN = t.randn(5, TINY_D_MODEL, generator=generator)
 
-    with apply_lrp_rules(tiny_gemma, LrpRuleConfig(identity_rule=True)):
+    with apply_lrp_rules(tiny_gelu_model, LrpRuleConfig(identity_rule=True)):
         patched_SN = mlp(x_SN)
         (patched_grad_SN,) = t.autograd.grad(patched_SN, x_SN, cotangent_SN)
 
@@ -270,9 +330,9 @@ def test_half_rule_halves_the_mlp_gradient(tiny_model):
 
 
 def test_rmsnorm_patchers_are_bit_exact_in_bf16_with_non_unit_weights(tiny_model):
-    # The models run in bf16, where the cast order (Gemma: scale in fp32 then type_as; OLMo:
-    # weight applied in fp32 before the downcast) decides the bits. A wrong order would still
-    # pass the fp32 tests above.
+    # The models run in bf16, where the cast order (Gemma 4: scale in fp32 then type_as; Gemma 3:
+    # 1 + w in fp32 then type_as; OLMo: weight applied in fp32 before the downcast) decides the
+    # bits. A wrong order would still pass the fp32 tests above.
     rmsnorm = tiny_model.model.layers[0].post_attention_layernorm
     generator = t.Generator().manual_seed(7)
     with t.no_grad():

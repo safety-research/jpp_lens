@@ -31,6 +31,14 @@ Pinned here:
 - Every subcommand parses (``--help`` exits 0) and runs end to end through
   ``main`` on the tiny models (loaders monkeypatched), writing its stamps; the
   default fit-weights and evaluate item splits are disjoint.
+- ``fit-router --prompts-json`` fits from a saved prompt pool, bit-identical to
+  the in-process fit on the same prompts, without the WikiText loader.
+- ``grade-correctness`` writes the model's True/False (NA for the evals with no
+  question) column into the correctness CSV beside the existing columns, in the
+  file's row order, and a rerun replaces that column rather than adding another.
+- ``--evals`` restricts fit-weights and evaluate to the named evals: the weights
+  are fitted on their items only, the rank rows and the macro row cover them
+  only, and an unknown or repeated slug is a usage error.
 - ``write_stamp`` writes JSON carrying the provenance keys.
 """
 
@@ -121,6 +129,7 @@ STAGES = [
     "fit-shard",
     "merge-experts",
     "pooled-lens",
+    "grade-correctness",
     "fit-weights",
     "evaluate",
     "probe-swap",
@@ -920,6 +929,7 @@ def test_fit_weights_and_evaluate_argv_parse_defaults() -> None:
         ["fit-weights", "--experts", "experts.pt", "--out", "lens.pt"]
     )
     assert fit_args.stage == "fit-weights"
+    assert fit_args.evals == list(MACRO_EVALS)
     assert fit_args.items == "fit:0"
     assert fit_args.fit_fraction == DEFAULT_FIT_FRACTION
     assert fit_args.layers == RECIPE_LAYERS
@@ -927,6 +937,7 @@ def test_fit_weights_and_evaluate_argv_parse_defaults() -> None:
     assert fit_args.cache_path is None
 
     eval_args = build_parser().parse_args(["evaluate", "--lens", "a.pt", "--out", "ranks.csv"])
+    assert eval_args.evals == list(MACRO_EVALS)
     assert eval_args.items == "held-out:0"
     assert eval_args.fit_fraction == DEFAULT_FIT_FRACTION
     eval_args = build_parser().parse_args(
@@ -948,6 +959,19 @@ def test_fit_weights_and_evaluate_argv_parse_defaults() -> None:
     assert eval_args.items == "held-out:1"
     assert eval_args.fit_fraction == 0.5
     assert eval_args.ks == DEFAULT_PASS_KS
+
+
+def test_evals_argv_takes_known_slugs_once(capsys: pytest.CaptureFixture[str]) -> None:
+    """``--evals`` accepts any readout eval (order-ops included, though outside the
+    default macro) and refuses an unknown or repeated slug as a usage error."""
+    parser = jpp_cli.build_parser()
+    argv = ["evaluate", "--lens", "a.pt", "--out", "ranks.csv", "--evals"]
+    assert parser.parse_args([*argv, "multihop,order-ops"]).evals == ["multihop", "order-ops"]
+    for bad_evals in ("multihop,sonnets", "typo,typo"):
+        with pytest.raises(SystemExit) as exit_info:
+            parser.parse_args([*argv, bad_evals])
+        assert exit_info.value.code == 2
+        assert bad_evals.split(",")[-1] in capsys.readouterr().err
 
 
 def test_main_fit_router_and_fit_shard_end_to_end_on_tiny_model(
@@ -1027,6 +1051,56 @@ def test_main_fit_router_and_fit_shard_end_to_end_on_tiny_model(
     assert shard_stamp["args"]["shard_idx"] == 1
 
 
+def test_main_fit_router_reads_the_prompt_pool_from_json(
+    model: TinyDecoder,
+    router: ActivationRouterCollection,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``--prompts-json`` feeds fit-router a saved pool in place of the WikiText
+    stream (``load_fit_prompts`` is left in place and must not be reached): the
+    router it writes is the in-process fit on the same prompts."""
+    monkeypatch.setattr(jpp_cli, "get_hf_model", lambda name, **_kwargs: model)
+    pool_path = tmp_path / "pool.json"
+    pool_path.write_text(json.dumps(PROMPTS))
+
+    router_path = tmp_path / "router.pt"
+    assert (
+        main(
+            [
+                "fit-router",
+                "--hf-model-name",
+                "tiny",
+                "--layers",
+                "0,1,2",
+                "--num-prompts",
+                str(len(PROMPTS)),
+                "--prompts-json",
+                str(pool_path),
+                "--num-clusters",
+                str(NUM_CLUSTERS),
+                "--projection-dim",
+                str(PROJECTION_DIM),
+                "--skip-first-n-positions",
+                str(SKIP_FIRST_N_POSITIONS),
+                "--max-seq-len",
+                str(MAX_SEQ_LEN),
+                "--out",
+                str(router_path),
+            ]
+        )
+        == 0
+    )
+    loaded = ActivationRouterCollection.load(str(router_path))
+    for layer in LAYERS:
+        assert t.equal(
+            loaded.layer_routers_L_dict[layer].centroids_ED,
+            router.layer_routers_L_dict[layer].centroids_ED,
+        )
+    router_stamp = json.loads((tmp_path / "router_stamp.json").read_text())
+    assert router_stamp["args"]["prompts_json"] == str(pool_path)
+
+
 def test_merge_experts_argv_defaults_device_to_the_gpu_when_available() -> None:
     args = jpp_cli.build_parser().parse_args(
         ["merge-experts", "--checkpoint-dirs", "shard0", "--out", "experts.pt"]
@@ -1042,6 +1116,7 @@ def test_model_loading_stages_accept_a_device_map() -> None:
     for argv in (
         ["fit-router", "--out", "router.pt"],
         ["fit-shard", "--router-path", "router.pt"],
+        ["grade-correctness"],
         ["fit-weights", "--experts", "experts.pt", "--out", "lens.pt"],
         ["evaluate", "--lens", "lens.pt", "--out", "ranks.csv"],
     ):
@@ -1225,7 +1300,165 @@ def test_main_fit_weights_and_evaluate_end_to_end_on_tiny_model(
     ]
 
 
+def test_main_fit_weights_and_evaluate_restrict_to_the_named_evals(
+    eval_model: TinyDecoder,
+    experts: ExpertJacobians,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``--evals multihop,typo``: fit-weights fits on those two evals' items only
+    and evaluate scores them only, with the macro row their mean rather than NaN
+    for the three evals left out (the Gemma 4 release's poetry drop)."""
+    monkeypatch.setattr(jpp_cli, "get_hf_model", lambda name, **_kwargs: eval_model)
+    data_dir = tmp_path / "evals"
+    data_dir.mkdir()
+    correctness_csv = write_fake_eval_data(data_dir, hf_model_name="tiny")
+    experts_path = tmp_path / "experts.pt"
+    experts.save(str(experts_path))
+    evals = ["multihop", "typo"]
+    shared_argv = [
+        "--hf-model-name",
+        "tiny",
+        "--layers",
+        "0,1,2",
+        "--evals",
+        ",".join(evals),
+        "--readout-max-seq-len",
+        str(READOUT_MAX_SEQ_LEN),
+        "--eval-data-dir",
+        str(data_dir),
+        "--correctness-csv",
+        str(correctness_csv),
+    ]
+
+    lens_path = tmp_path / "lens" / "jpp.pt"
+    assert (
+        main(
+            [
+                "fit-weights",
+                *shared_argv,
+                "--experts",
+                str(experts_path),
+                "--k",
+                "3",
+                "--top-n",
+                str(NUM_CLUSTERS),
+                "--steps",
+                "3",
+                "--out",
+                str(lens_path),
+            ]
+        )
+        == 0
+    )
+    fit_stamp = json.loads((tmp_path / "lens" / "jpp_stamp.json").read_text())
+    assert fit_stamp["args"]["evals"] == evals
+    # One fitting item per named eval at the default fraction, none from the others.
+    assert sorted(name.split("-")[0] for name in fit_stamp["fitting_item_names"]) == evals
+
+    ranks_path = tmp_path / "eval" / "ranks.csv"
+    assert (
+        main(["evaluate", *shared_argv, "--lens", str(lens_path), "--out", str(ranks_path)])
+        == 0
+    )
+    ranks_df = pd.read_csv(ranks_path)
+    assert set(ranks_df["eval"]) == set(evals)
+    eval_stamp = json.loads((tmp_path / "eval" / "ranks_stamp.json").read_text())
+    assert eval_stamp["args"]["evals"] == evals
+    assert sorted({name.split("-")[0] for name in eval_stamp["scored_item_names"]}) == evals
+    pass_df = pd.read_csv(tmp_path / "eval" / "ranks_pass_at_k.csv")
+    assert set(pass_df["eval"]) == {*evals, "macro"}
+    assert pass_df["pass_at_k"].notna().all()
+    for (_, _), rows_df in pass_df.groupby(["weighting", "k"]):
+        by_eval = rows_df.set_index("eval")["pass_at_k"]
+        assert by_eval["macro"] == pytest.approx(by_eval[evals].mean())
+
+
 ### pooled lens
+
+
+def test_main_grade_correctness_adds_the_model_column_to_the_csv(
+    eval_model: TinyDecoder, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """grade-correctness on a CSV holding another model's column: that column and
+    the row order are kept, the new column has one verdict per item (NA for the
+    evals with no question) and the stamp sits beside the output, which is the
+    input CSV by default. A rerun replaces the column instead of adding another."""
+    monkeypatch.setattr(jpp_cli, "get_hf_model", lambda name, **_kwargs: eval_model)
+    data_dir = tmp_path / "evals"
+    data_dir.mkdir()
+    correctness_csv = write_fake_eval_data(data_dir, hf_model_name="tiny")
+    before_df = pd.read_csv(correctness_csv)
+    argv = [
+        "grade-correctness",
+        "--hf-model-name",
+        "tiny-graded",
+        "--readout-max-seq-len",
+        str(READOUT_MAX_SEQ_LEN),
+        "--eval-data-dir",
+        str(data_dir),
+    ]
+
+    assert main([*argv, "--correctness-csv", str(correctness_csv)]) == 0
+    graded_df = pd.read_csv(correctness_csv)
+    assert list(graded_df.columns) == ["eval", "item", "tiny", "tiny-graded"]
+    assert graded_df[["eval", "item", "tiny"]].equals(before_df)
+    assert len(graded_df) == len(fake_recipe_items())
+    ungradeable = graded_df["eval"].isin(["association", "typo"])
+    assert graded_df.loc[ungradeable, "tiny-graded"].isna().all()
+    assert graded_df.loc[~ungradeable, "tiny-graded"].isin([True, False]).all()
+    stamp = json.loads((data_dir / "model_correctness_stamp.json").read_text())
+    assert stamp["stage"] == "grade-correctness"
+    assert stamp["args"]["grade_at_token_boundary"] is False
+    assert set(stamp["counts"]) == set(MACRO_EVALS)
+    assert stamp["counts"]["association"] == {"items": 4, "gradeable": 0, "correct": 0}
+    assert stamp["counts"]["multihop"]["gradeable"] == 4
+
+    # The column is replaced on a rerun: blank it, grade again to another file.
+    blanked_csv = tmp_path / "blanked.csv"
+    graded_df.assign(**{"tiny-graded": pd.NA}).to_csv(blanked_csv, index=False)
+    regraded_csv = tmp_path / "regraded" / "model_correctness.csv"
+    assert (
+        main([*argv, "--correctness-csv", str(blanked_csv), "--out", str(regraded_csv)]) == 0
+    )
+    assert pd.read_csv(regraded_csv).equals(graded_df)
+    assert (tmp_path / "regraded" / "model_correctness_stamp.json").exists()
+
+
+def test_main_grade_correctness_at_token_boundary_runs_and_stamps_the_flag(
+    eval_model: TinyDecoder, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``--grade-at-token-boundary`` grades end to end (a no-op cut under the
+    character tokenizer, which folds no space) and is recorded in the stamp."""
+    monkeypatch.setattr(jpp_cli, "get_hf_model", lambda name, **_kwargs: eval_model)
+    data_dir = tmp_path / "evals"
+    data_dir.mkdir()
+    correctness_csv = write_fake_eval_data(data_dir, hf_model_name="tiny")
+    out_csv = tmp_path / "graded" / "model_correctness.csv"
+    assert (
+        main(
+            [
+                "grade-correctness",
+                "--hf-model-name",
+                "tiny-graded",
+                "--grade-at-token-boundary",
+                "--readout-max-seq-len",
+                str(READOUT_MAX_SEQ_LEN),
+                "--eval-data-dir",
+                str(data_dir),
+                "--correctness-csv",
+                str(correctness_csv),
+                "--out",
+                str(out_csv),
+            ]
+        )
+        == 0
+    )
+    graded_df = pd.read_csv(out_csv)
+    assert list(graded_df.columns) == ["eval", "item", "tiny", "tiny-graded"]
+    assert len(graded_df) == len(fake_recipe_items())
+    stamp = json.loads((tmp_path / "graded" / "model_correctness_stamp.json").read_text())
+    assert stamp["args"]["grade_at_token_boundary"] is True
 
 
 def test_merge_experts_pooled_lens_out_is_the_fp32_matched_baseline(

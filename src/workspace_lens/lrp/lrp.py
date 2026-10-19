@@ -40,14 +40,16 @@ gradient scale). ``shared_expert_forward_scale`` is NOT a propagation rule: it m
 DeepSeek shared expert's output in the forward, so the fitted model is the
 amplified one (used by the ``all-c4+mhc`` preset).
 
-Gemma 4 (``Gemma4RMSNorm``, ``Gemma4TextMLP`` with GELU-tanh) and OLMo 3
-(``Olmo3RMSNorm`` on the sublayer outputs of its post-norm blocks,
+Gemma 3 (``Gemma3RMSNorm``, Qwen3.5's (1 + w) forward; ``Gemma3MLP`` with
+GELU-tanh), Gemma 4 (``Gemma4RMSNorm``, ``Gemma4TextMLP`` with GELU-tanh) and
+OLMo 3 (``Olmo3RMSNorm`` on the sublayer outputs of its post-norm blocks,
 ``Olmo3MLP``) are covered too. The identity rule holds for any activation of
 the form ``act(z) = z · g(z)`` with the gate ``g`` detached (RelP's "GELU /
 SiLU Identity-rule"); :data:`_IDENTITY_RULE_ACTIVATIONS` maps each activation
 class to its detached-gate rewrite. Every RMSNorm inside a ``self_attn``
 module keeps standard gradients, and a multimodal wrapper's vision and audio
-towers and embedders are skipped: the surgery targets the text decoder.
+towers, embedders and projector are skipped: the surgery targets the text
+decoder.
 DeepSeek-V4 (``DeepseekV4RMSNorm``, the clamped ``DeepseekV4MLP`` shared
 expert, the clamped ``DeepseekV4Experts`` loop, the ``r+mhc`` preset
 detaching the hyper-connection coefficients and the ``all-c4+mhc`` preset,
@@ -94,6 +96,7 @@ _KNOWN_GATED_MLPS = (
     "Qwen3_5MoeMLP",
     "Qwen3MoeMLP",
     "Olmo3MLP",  # SiLU; forward byte-identical to Qwen3_5MLP's (transformers 5.14.1)
+    "Gemma3MLP",  # GELU-tanh; same down(act(gate(x)) * up(x)) forward
     "Gemma4TextMLP",  # GELU-tanh; same down(act(gate(x)) * up(x)) forward
     # DeepSeek-V4's dense / shared-expert MLP: down(act(clamp(gate(x))) * clamp(up(x)))
     # with a ``limit`` attribute (swiglu_limit); the patcher reproduces the clamps.
@@ -324,6 +327,7 @@ _RMSNORM_LRP_FORWARDS = {
     "Qwen3_5RMSNorm": _qwen3_5_rmsnorm_lrp_forward,
     # Value-identical family: zero-init (1+w), same eps attr, same cast order.
     "Qwen3_5MoeRMSNorm": _qwen3_5_rmsnorm_lrp_forward,
+    "Gemma3RMSNorm": _qwen3_5_rmsnorm_lrp_forward,  # (1+w) in fp32 then type_as, eps attr `eps`
     "Qwen2RMSNorm": _qwen2_rmsnorm_lrp_forward,
     "Qwen3RMSNorm": _qwen2_rmsnorm_lrp_forward,  # same forward as Qwen2's
     "Qwen3MoeRMSNorm": _qwen2_rmsnorm_lrp_forward,  # byte-identical to Qwen2's
@@ -536,7 +540,7 @@ def _is_qk_norm(qualified_name: str) -> bool:
 
 
 _MULTIMODAL_MODULE_SEGMENTS = frozenset(
-    {"vision_tower", "audio_tower", "embed_vision", "embed_audio"}
+    {"vision_tower", "audio_tower", "embed_vision", "embed_audio", "multi_modal_projector"}
 )
 
 
@@ -554,9 +558,11 @@ def is_attention_internal_norm(qualified_name: str) -> bool:
 def is_multimodal_tower_module(qualified_name: str) -> bool:
     """Modules of a multimodal wrapper that the text forward never runs (Gemma
     4's ``vision_tower``, ``audio_tower`` and the ``embed_vision`` /
-    ``embed_audio`` projectors): the surgery skips them so their norms and MLPs
-    (the vision MLP has the gated-MLP attribute shape) neither need patchers nor
-    count toward the per-family guard. Matched on path segments."""
+    ``embed_audio`` projectors; Gemma 3's ``multi_modal_projector``, whose
+    ``mm_soft_emb_norm`` is a residual-width ``Gemma3RMSNorm``): the surgery
+    skips them so their norms and MLPs (the Gemma 4 vision MLP has the gated-MLP
+    attribute shape) neither need patchers nor count toward the per-family
+    guard. Matched on path segments."""
     return not _MULTIMODAL_MODULE_SEGMENTS.isdisjoint(qualified_name.split("."))
 
 

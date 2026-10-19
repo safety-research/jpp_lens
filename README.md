@@ -167,8 +167,9 @@ The tests run every stage on tiny CPU models; no GPU or download is needed.
 
 The readout evals (`data/jlens/evaluations/lens-eval-*.json`) and the probe-swap prompts are from
 [anthropics/jacobian-lens](https://github.com/anthropics/jacobian-lens) (Apache 2.0).
-`data/jlens/evaluations/model_correctness.csv` marks the items Qwen3.6-27B answers correctly; only
-those are scored (typo and association items are always kept).
+`data/jlens/evaluations/model_correctness.csv` marks, per model column,
+the items the model answers correctly;
+only those are scored (typo and association items are always kept).
 
 The code is released under the Apache License 2.0 ([LICENSE](LICENSE)). `src/jlens/` and parts of
 `src/workspace_lens/` derive from anthropics/jacobian-lens, and the LRP rules derive from the R-Lens

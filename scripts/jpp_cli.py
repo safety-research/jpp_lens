@@ -17,6 +17,12 @@ hash, a timestamp and the library version beside its output):
                  layer's pooled Jacobian. Optionally also the pooled lens.
   pooled-lens    the experts' pooled Jacobian as a plain lens (.pt): the R-Lens of the
                  same fit.
+  grade-correctness
+                 the model's column of the correctness CSV: True/False per labelled
+                 item from one greedy step (--grade-at-token-boundary: on the prompt
+                 cut at the tokenizer's own word boundary), NA for the evals with no
+                 question; merged into the existing file. Once per model, before
+                 fit-weights.
   fit-weights    the J++ Lens (.pt, fp32): one expert-weight vector per layer, fitted
                  on the labelled items' readout residuals and saved in
                  <stem>_expert_weights.json.
@@ -33,6 +39,9 @@ default 20%) and every lens is scored on the rest: ``--items fit:<seed>`` and
 ``held-out:<seed>`` select the two splits (:func:`select_items`), taken over the scoreable
 items (the ones the residual recorder keeps and the runner scores), since an item's split
 depends on the whole list. fit-weights defaults to ``fit:0`` and evaluate to ``held-out:0``.
+``--evals`` names the evals both stages load, fit and score on, and the members of
+evaluate's macro row: the five macro evals by default; drop one the model mostly fails,
+as the released Gemma 4 lens drops poetry.
 """
 
 from __future__ import annotations
@@ -60,7 +69,9 @@ from lens_evals.causal_evals import (
 from lens_evals.causal_evals.probe_swap import PROBE_SWAP_SCALES
 from lens_evals.readout_evals.readout_eval_items import (
     DEFAULT_FIT_FRACTION,
+    MACRO_EVALS,
     MODEL_CORRECTNESS_CSV,
+    READOUT_EVAL_SPECS,
     READOUT_EVALS_DATA_DIR,
     RECIPE_HF_MODEL_NAME,
     ReadoutEvalItem,
@@ -169,9 +180,10 @@ def readout_runner(
     model: LensModel, *, layers: Sequence[int], max_seq_len: int
 ) -> ReadoutEvalRunner:
     """A lens-less runner, for the item-level methods that read out no lens
-    (:meth:`~lens_evals.readout_evals.readout_evals.ReadoutEvalRunner.scoreable_items` and
-    :meth:`~lens_evals.readout_evals.readout_evals.ReadoutEvalRunner.record_residuals`); with no
-    lens to take them from, ``layers`` is required."""
+    (:meth:`~lens_evals.readout_evals.readout_evals.ReadoutEvalRunner.scoreable_items`,
+    :meth:`~lens_evals.readout_evals.readout_evals.ReadoutEvalRunner.record_residuals` and
+    :meth:`~lens_evals.readout_evals.readout_evals.ReadoutEvalRunner.grade_model_correctness`);
+    with no lens to take them from, ``layers`` is required."""
     return ReadoutEvalRunner(model, {}, layers=layers, max_seq_len=max_seq_len)
 
 
@@ -327,6 +339,57 @@ def merge_experts(
     )
 
 
+def grade_correctness(
+    model: LensModel,
+    items: Sequence[ReadoutEvalItem],
+    *,
+    hf_model_name: str,
+    max_seq_len: int = RECIPE_READOUT_MAX_SEQ_LEN,
+    at_token_boundary: bool = False,
+) -> pd.DataFrame:
+    """Once per model, before stage 4: the model's column of the correctness CSV,
+    :meth:`ReadoutEvalRunner.grade_model_correctness` over ``items`` — one greedy step
+    per item (with ``at_token_boundary``, on the prompt cut at the tokenizer's own word
+    boundary), True/False against its target, ``NA`` for the evals that pose no question
+    (association, typo). One row per item: ``eval``, ``item``, ``hf_model_name``."""
+    # Grading reads out no lens, so the runner's layers go unused.
+    runner = readout_runner(model, layers=[0], max_seq_len=max_seq_len)
+    return runner.grade_model_correctness(
+        items, hf_model_name=hf_model_name, at_token_boundary=at_token_boundary
+    )
+
+
+def merge_correctness_column(
+    existing_df: pd.DataFrame, graded_df: pd.DataFrame, *, hf_model_name: str
+) -> pd.DataFrame:
+    """The correctness CSV (``eval``, ``item``, one column per model) with
+    :func:`grade_correctness`'s ``hf_model_name`` column joined on ``(eval, item)``:
+    the other models' columns are kept, an earlier column for this model is replaced,
+    the file's rows keep their order and items new to it follow them."""
+    keys = ["eval", "item"]
+    kept_df = existing_df.drop(columns=[hf_model_name], errors="ignore")
+    is_new_item = ~graded_df.set_index(keys).index.isin(kept_df.set_index(keys).index)
+    return pd.concat(
+        [kept_df.merge(graded_df, on=keys, how="left"), graded_df[is_new_item]],
+        ignore_index=True,
+    )
+
+
+def correctness_counts(
+    graded_df: pd.DataFrame, *, hf_model_name: str
+) -> dict[str, dict[str, int]]:
+    """Per eval, in :func:`grade_correctness`'s order: ``items``, ``gradeable`` (non-NA)
+    and ``correct`` counts — what fit-weights and evaluate will have left of each eval."""
+    return {
+        eval_slug: {
+            "items": len(verdicts),
+            "gradeable": int(verdicts.notna().sum()),
+            "correct": int(verdicts.dropna().sum()),
+        }
+        for eval_slug, verdicts in graded_df.groupby("eval", sort=False)[hf_model_name]
+    }
+
+
 def fit_weights(
     model: LensModel,
     expert_jacobians: ExpertJacobians,
@@ -382,13 +445,14 @@ def evaluate(
     excluded_token_ids: Sequence[int],
     ks: Sequence[int] = tuple(DEFAULT_PASS_KS),
     max_seq_len: int = RECIPE_READOUT_MAX_SEQ_LEN,
+    macro_evals: Sequence[str] = MACRO_EVALS,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Stage 5: ``(ranks_df, pass_df)`` — :meth:`ReadoutEvalRunner.run`'s rank rows
     (``eval, lens, item, intermediate, layer, rank, n_candidates``) with
     ``excluded_token_ids`` forced out of every ranking (pass ``[]`` to rank the
     full vocabulary), and :func:`pass_at_k_by_weighting` over them: recall@k per
-    eval and the ``macro`` row, per lens, k and weighting (``item`` and
-    ``pair``). Scores only; no fitting. Every lens must have been fitted on
+    eval and the ``macro`` row over ``macro_evals``, per lens, k and weighting
+    (``item`` and ``pair``). Scores only; no fitting. Every lens must have been fitted on
     ``model`` (:func:`~workspace_lens.utils.check_model_matches_config`)."""
     for lens in lenses.values():
         check_model_matches_config(model, lens.config)
@@ -400,7 +464,7 @@ def evaluate(
         excluded_token_ids=excluded_token_ids,
     )
     ranks_df = runner.run(items)
-    return ranks_df, pass_at_k_by_weighting(ranks_df, ks)
+    return ranks_df, pass_at_k_by_weighting(ranks_df, ks, macro_evals=macro_evals)
 
 
 def probe_swap(
@@ -495,6 +559,18 @@ def parse_int_list(text: str) -> list[int]:
     return [int(item) for item in text.split(",")]
 
 
+def parse_eval_list(text: str) -> list[str]:
+    """``"multihop,typo"`` -> ``["multihop", "typo"]`` (argparse ``type``); every slug
+    must name a readout eval, once."""
+    slugs = text.split(",")
+    unknown = [slug for slug in slugs if slug not in READOUT_EVAL_SPECS]
+    if unknown or len(set(slugs)) != len(slugs):
+        raise argparse.ArgumentTypeError(
+            f"evals must be distinct names among {list(READOUT_EVAL_SPECS)}, got {slugs}"
+        )
+    return slugs
+
+
 def load_lenses(
     specs: Sequence[str], model: LensModel, *, hf_model_name: str, layers: Sequence[int]
 ) -> dict[str, BaseLens]:
@@ -568,6 +644,14 @@ def _add_layers_argument(parser: argparse.ArgumentParser) -> None:
 def _add_eval_items_arguments(parser: argparse.ArgumentParser, *, default_items: str) -> None:
     """The item-selection arguments shared by fit-weights and evaluate."""
     parser.add_argument(
+        "--evals",
+        type=parse_eval_list,
+        default=list(MACRO_EVALS),
+        help="Comma-separated readout evals to load, fit and score on, and the macro row's "
+        "members; drop an eval the model mostly fails, as the released Gemma 4 lens drops "
+        "poetry. Default %(default)s.",
+    )
+    parser.add_argument(
         "--items",
         default=default_items,
         help="'all' (every scoreable eval item), 'fit:<seed>' (the fitting split, for the "
@@ -621,6 +705,13 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=NUM_WIKITEXT_FIT_PROMPTS,
         help="First N of the WikiText pool. Default %(default)s.",
+    )
+    fit_router_parser.add_argument(
+        "--prompts-json",
+        default=None,
+        help="Read the prompt pool from this JSON list (the first --num-prompts are used) "
+        "instead of streaming WikiText from the Hub, for compute jobs that run offline. "
+        "Default: stream.",
     )
     fit_router_parser.add_argument("--num-clusters", type=int, default=RECIPE_NUM_CLUSTERS)
     fit_router_parser.add_argument("--projection-dim", type=int, default=64)
@@ -741,6 +832,26 @@ def build_parser() -> argparse.ArgumentParser:
         "--out", required=True, help="Lens .pt path (saved fp32); the stamp is written beside it."
     )
 
+    grade_correctness_parser = subparsers.add_parser(
+        "grade-correctness",
+        help="Grade the model's greedy answers on the eval items into the correctness CSV "
+        "(once per model, before stage 4).",
+    )
+    _add_model_argument(grade_correctness_parser)
+    _add_eval_data_arguments(grade_correctness_parser)
+    grade_correctness_parser.add_argument(
+        "--grade-at-token-boundary",
+        action="store_true",
+        help="Drop a prompt's trailing whitespace when the tokenizer folds a space into the "
+        "target's first token, keeping it for digits (SentencePiece models such as Gemma 3 "
+        "emit a newline after a lone trailing-space token). Default: prompts as written.",
+    )
+    grade_correctness_parser.add_argument(
+        "--out",
+        default=None,
+        help="CSV to write (stamp beside it). Default: --correctness-csv, updated in place.",
+    )
+
     fit_weights_parser = subparsers.add_parser(
         "fit-weights",
         help="Fit expert weights on labelled items and build the lens (stage 4).",
@@ -855,10 +966,15 @@ def _load_model(args: argparse.Namespace) -> LensModel:
 
 
 def _run_fit_router(args: argparse.Namespace) -> None:
+    prompts = (
+        load_fit_prompts_from_json(args.prompts_json, args.num_prompts)
+        if args.prompts_json is not None
+        else load_fit_prompts(args.num_prompts)
+    )
     model = _load_model(args)
     router = fit_router(
         model,
-        load_fit_prompts(args.num_prompts),
+        prompts,
         layers=args.layers,
         num_clusters=args.num_clusters,
         projection_dim=args.projection_dim,
@@ -974,6 +1090,33 @@ def _run_pooled_lens(args: argparse.Namespace) -> None:
     )
 
 
+def _run_grade_correctness(args: argparse.Namespace) -> None:
+    out_path = args.out if args.out is not None else args.correctness_csv
+    existing_df = pd.read_csv(args.correctness_csv)
+    graded_df = grade_correctness(
+        _load_model(args),
+        load_readout_eval_items(args.eval_data_dir),
+        hf_model_name=args.hf_model_name,
+        max_seq_len=args.readout_max_seq_len,
+        at_token_boundary=args.grade_at_token_boundary,
+    )
+    counts = correctness_counts(graded_df, hf_model_name=args.hf_model_name)
+    for eval_slug, eval_counts in counts.items():
+        logger.info(
+            "%s: %d of %d gradeable items correct, %d ungradeable",
+            eval_slug,
+            eval_counts["correct"],
+            eval_counts["gradeable"],
+            eval_counts["items"] - eval_counts["gradeable"],
+        )
+    stamp_path = write_stage_stamp(args, out_path, counts=counts)
+    merged_df = merge_correctness_column(existing_df, graded_df, hf_model_name=args.hf_model_name)
+    merged_df.to_csv(out_path, index=False)
+    logger.info(
+        "correctness column %s written to %s (stamp %s)", args.hf_model_name, out_path, stamp_path
+    )
+
+
 def load_items_and_exclusions(
     model: LensModel,
     *,
@@ -984,15 +1127,19 @@ def load_items_and_exclusions(
     readout_max_seq_len: int,
     items_spec: str = "all",
     fit_fraction: float = DEFAULT_FIT_FRACTION,
+    evals: Sequence[str] = MACRO_EVALS,
 ) -> tuple[list[ReadoutEvalItem], list[ReadoutEvalItem], list[int]]:
-    """``(items, selected_items, excluded_token_ids)``: the eval items (five
-    evals, correctness-filtered for ``hf_model_name``), the ``items_spec``
-    selection over the scoreable ones (:func:`select_items` with ``fit_fraction``), and the
-    Readout Filtering exclusion ids
+    """``(items, selected_items, excluded_token_ids)``: the eval items (the
+    ``evals``, five by default, correctness-filtered for ``hf_model_name``), the
+    ``items_spec`` selection over the scoreable ones (:func:`select_items` with
+    ``fit_fraction``), and the Readout Filtering exclusion ids
     (:func:`~lens_evals.readout_evals.readout_eval_items.non_semantic_token_ids` over
-    the LM-head width, sparing all six evals' candidates)."""
+    the LM-head width, sparing all six evals' candidates whichever are scored)."""
     items = load_recipe_items(
-        data_dir=eval_data_dir, correctness_csv=correctness_csv, hf_model_name=hf_model_name
+        data_dir=eval_data_dir,
+        correctness_csv=correctness_csv,
+        hf_model_name=hf_model_name,
+        slugs=evals,
     )
     runner = readout_runner(model, layers=layers, max_seq_len=readout_max_seq_len)
     selected_items = select_items(
@@ -1020,6 +1167,7 @@ def _load_items_and_exclusions(
         readout_max_seq_len=args.readout_max_seq_len,
         items_spec=args.items,
         fit_fraction=args.fit_fraction,
+        evals=args.evals,
     )
     if getattr(args, "no_readout_filter", False):
         excluded_token_ids = []
@@ -1130,6 +1278,7 @@ def _run_evaluate(args: argparse.Namespace) -> None:
         excluded_token_ids=excluded_token_ids,
         ks=args.ks,
         max_seq_len=args.readout_max_seq_len,
+        macro_evals=args.evals,
     )
     _write_scores(
         args,
@@ -1164,6 +1313,7 @@ STAGE_HANDLERS = {
     "fit-shard": _run_fit_shard,
     "merge-experts": _run_merge_experts,
     "pooled-lens": _run_pooled_lens,
+    "grade-correctness": _run_grade_correctness,
     "fit-weights": _run_fit_weights,
     "evaluate": _run_evaluate,
     "probe-swap": _run_probe_swap,

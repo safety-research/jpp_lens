@@ -235,6 +235,28 @@ def test_pair_pass_at_k_macro_over_the_five_evals_only() -> None:
     assert table[("B", "multihop")] == pytest.approx(1.0)
 
 
+def test_macro_over_the_evals_given() -> None:
+    """``macro_evals`` names the macro's members when fewer evals are scored on
+    purpose: both weightings average over exactly those, and a named eval the
+    lens lacks still makes its macro NaN."""
+    rows = [
+        ("multihop", "A", "i", "x", 8, 1),
+        ("typo", "A", "i", "x", 8, 50),
+        ("association", "A", "i", "x", 8, 1),
+    ]
+    for scorer in (pass_at_k_over_layers, pair_pass_at_k):
+        macro_by_evals = {
+            macro_evals: scorer(_ranks_df(rows), ks=(10,), macro_evals=macro_evals)
+            .set_index("eval")["pass_at_k"]["macro"]
+            for macro_evals in (("multihop", "typo"), ("multihop", "poetry"), MACRO_EVALS)
+        }
+        assert macro_by_evals[("multihop", "typo")] == pytest.approx(1 / 2)
+        assert pd.isna(macro_by_evals[("multihop", "poetry")])
+        assert pd.isna(macro_by_evals[MACRO_EVALS])
+    stacked = pass_at_k_by_weighting(_ranks_df(rows), (10,), macro_evals=("multihop", "typo"))
+    assert stacked[stacked["eval"] == "macro"]["pass_at_k"].tolist() == pytest.approx([0.5, 0.5])
+
+
 ### BOTH WEIGHTINGS IN ONE TABLE
 
 

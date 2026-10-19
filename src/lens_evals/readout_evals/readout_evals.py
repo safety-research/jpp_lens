@@ -42,6 +42,7 @@ from jlens.protocol import LensModel
 from lens_evals.eval_utils import (
     candidate_token_ids,
     check_candidates_not_all_excluded,
+    grading_prompt,
     next_token_matches_target,
 )
 from lens_evals.readout_evals.readout_eval_items import (
@@ -334,13 +335,20 @@ class ReadoutEvalRunner:
 
     @t.no_grad()
     def grade_model_correctness(
-        self, items: Sequence[ReadoutEvalItem], *, hf_model_name: str
+        self,
+        items: Sequence[ReadoutEvalItem],
+        *,
+        hf_model_name: str,
+        at_token_boundary: bool = False,
     ) -> pd.DataFrame:
         """One greedy step per item: is the next token the target (or a
         leading subword of it)?
 
         Returns one row per item: ``eval``, ``item``, and an ``hf_model_name``
-        column holding True/False, or ``NA`` for ungradeable evals.
+        column holding True/False, or ``NA`` for ungradeable evals. With
+        ``at_token_boundary`` the step runs on :func:`~lens_evals.eval_utils.grading_prompt`
+        (the prompt's trailing space dropped where the tokenizer would fold it into
+        the target); the readout positions of :meth:`run` are untouched either way.
         """
         rows: list[dict] = []
         for item in items:
@@ -348,7 +356,12 @@ class ReadoutEvalRunner:
             if target is None:
                 correct: Any = pd.NA
             else:
-                logits_V = final_position_model_logits(self.model, item.prompt, self.max_seq_len)
+                prompt = (
+                    grading_prompt(self.model.tokenizer, item.prompt, target)
+                    if at_token_boundary
+                    else item.prompt
+                )
+                logits_V = final_position_model_logits(self.model, prompt, self.max_seq_len)
                 next_token = self.model.tokenizer.decode([int(logits_V.argmax())])
                 correct = next_token_matches_target(next_token, target)
             rows.append({"eval": item.eval_slug, "item": item.name, hf_model_name: correct})

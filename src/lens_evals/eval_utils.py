@@ -219,6 +219,20 @@ def next_token_matches_target(decoded_next_token: str, target: str) -> bool:
     return bool(stripped) and target.strip().startswith(stripped)
 
 
+def grading_prompt(tokenizer: Any, prompt: str, target: str) -> str:
+    """The prompt the greedy step is graded on, cut at the model's own token
+    boundary: a prompt's trailing whitespace ("... the face of ") is dropped when
+    the tokenizer folds a space into the target's first token (" death"), and
+    kept when the space stands alone (" 20" is " ", "2", "0"). A SentencePiece
+    model such as Gemma 3 otherwise sees a lone " " token and emits a newline
+    where a word is due, while a digit target needs that space in place.
+    """
+    if prompt == prompt.rstrip():
+        return prompt
+    first_token_id = tokenizer(" " + target, add_special_tokens=False).input_ids[0]
+    return prompt.rstrip() if tokenizer.decode([int(first_token_id)]).strip() else prompt
+
+
 def resolve_swap_token(
     tokenizer: Any, concept: str
 ) -> tuple[int, str] | tuple[None, None]:
